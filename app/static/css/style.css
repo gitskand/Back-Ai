@@ -1234,3 +1234,8 @@ body:not(.light) #toggleMic.mic-inside {
 
 
 
+
+
+.bubble .label{font-size:12px;line-height:1.2;opacity:.8;margin:0 0 4px}
+.bubble.ai .label{color:#7aa2ff}
+.bubble.user .label{color:#9aa0a6}
