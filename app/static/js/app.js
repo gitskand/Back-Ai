@@ -81,6 +81,8 @@ function addBubble(text, who = 'ai') {
   chat.scrollTop = chat.scrollHeight;
 }
 
+
+
 function getAvatarSrc(identity) {
   switch (identity) {
     case 'male': return '/static/img/avatar-male.jpg';

@@ -224,6 +224,16 @@
       document.getElementById("chat").innerHTML = "";
     }
 
+    function clearChat() {
+  try { cancelSpeech(); } catch (_) {}
+  try { stopRecognition(); } catch (_) {}
+
+  // wipe UI and local storage
+  if (typeof chat !== 'undefined') chat.innerHTML = '';
+  try { localStorage.removeItem('chatMessages'); } catch (_) {}
+}
+
+
     // 💾 Restore messages on load
     window.addEventListener('DOMContentLoaded', () => {
       const savedMessages = JSON.parse(localStorage.getItem('chatMessages') || '[]');
