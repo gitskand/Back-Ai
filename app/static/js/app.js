@@ -615,7 +615,7 @@
 
 
 /* ================================
-   Mobile-Stable Chat + Voice App.js
+   FINAL APP.JS - Voice & Mic Stable
    ================================ */
 
    const chat = document.getElementById('chat');
@@ -627,45 +627,32 @@
    const toggleMic = document.getElementById('toggleMic');
    const stopBtn = document.getElementById('stopVoice');
    const nameInput = document.getElementById('nameInput');
-   const avatar = document.getElementById('avatar');
    
-   /* ---------- Global State ---------- */
    const state = {
      voices: [],
      currentUtter: null,
      isRecognizing: false,
-     audioUnlocked: false,   // iOS/Safari needs user-gesture unlock
-     tapToggleMode: true,    // single tap toggles mic on mobile; hold also supported
+     audioUnlocked: false,
      recognizingManuallyStarted: false,
    };
    
-   /* ---------- Audio Unlock (iOS/Safari) ---------- */
+   /* ---------- Audio Unlock ---------- */
    function unlockAudioOnce() {
-     if (!('speechSynthesis' in window)) return;
-     if (state.audioUnlocked) return;
-   
+     if (!('speechSynthesis' in window) || state.audioUnlocked) return;
      try {
-       // 1) Dummy utterance (many iOS versions require this)
-       const u = new SpeechSynthesisUtterance('');
-       window.speechSynthesis.speak(u);
-   
-       // 2) Resume if paused (some devices load paused by default)
-       if (window.speechSynthesis.paused) {
-         window.speechSynthesis.resume();
-       }
+       const dummy = new SpeechSynthesisUtterance('');
+       window.speechSynthesis.speak(dummy);
+       if (window.speechSynthesis.paused) window.speechSynthesis.resume();
        state.audioUnlocked = true;
-       // console.log('🔓 Audio unlocked');
-     } catch (_) {
-       // ignore
-     }
+     } catch (_) {}
    }
    
-   /* ---------- Speech helpers ---------- */
+   /* ---------- Speech Helpers ---------- */
    function cancelSpeech() {
      if (!('speechSynthesis' in window)) return;
      try { window.speechSynthesis.cancel(); } catch (_) {}
      if (state.currentUtter) {
-       try { state.currentUtter.onend = state.currentUtter.onerror = null; } catch (_) {}
+       state.currentUtter.onend = state.currentUtter.onerror = null;
        state.currentUtter = null;
      }
    }
@@ -679,18 +666,16 @@
      }
    }
    
-   // Strong emoji/pictograph strip so TTS won’t say “smiling face…”
    function cleanTextForSpeech(text) {
      let t = String(text || "");
      try {
        t = t
          .replace(/\p{Extended_Pictographic}/gu, "")
          .replace(/\p{Emoji_Presentation}/gu, "")
-         .replace(/\uFE0F/gu, "")   // VS16
-         .replace(/\u200D/gu, "");  // ZWJ
-       t = t
-         .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "") // flags
-         .replace(/[\u{1F3FB}-\u{1F3FF}]/gu, ""); // skin tones
+         .replace(/\uFE0F/gu, "")
+         .replace(/\u200D/gu, "")
+         .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, "")
+         .replace(/[\u{1F3FB}-\u{1F3FF}]/gu, "");
      } catch {
        const emojiFallback =
          /[\u2700-\u27BF]|\u24C2|[\u25A0-\u25FF]|[\u2190-\u21FF]|[\u2300-\u23FF]|[\u2600-\u26FF]|[\u2B00-\u2BFF]|[\u1F000-\u1FAFF]|\uFE0F|\u200D|[\uD83C-\uDBFF][\uDC00-\uDFFF]/g;
@@ -701,49 +686,34 @@
    
    function speak(text) {
      if (!('speechSynthesis' in window)) return;
-   
-     // Mobile/Safari: must be resumed just before speaking
-     try {
-       if (window.speechSynthesis.paused) {
-         window.speechSynthesis.resume();
-       }
-     } catch (_) {}
-   
+     try { if (window.speechSynthesis.paused) window.speechSynthesis.resume(); } catch (_) {}
      cancelSpeech();
    
      const safeText = cleanTextForSpeech(text);
      if (!safeText) return;
    
      const utter = new SpeechSynthesisUtterance(safeText);
-     utter.lang = langSel?.value || 'en-US';
-   
-     const chosen = state.voices.find(v => v.name === voiceSel?.value);
+     utter.lang = langSel.value || 'en-US';
+     const chosen = state.voices.find(v => v.name === voiceSel.value);
      if (chosen) utter.voice = chosen;
-   
      utter.rate = 1.0;
      utter.pitch = 1.0;
      utter.volume = 1.0;
-   
      utter.onend = () => { state.currentUtter = null; };
      utter.onerror = () => { state.currentUtter = null; };
    
      state.currentUtter = utter;
-   
      try {
        window.speechSynthesis.speak(utter);
-     } catch (e) {
-       // Some mobiles need another resume right before
+     } catch {
        try { window.speechSynthesis.resume(); window.speechSynthesis.speak(utter); } catch (_) {}
      }
    }
    
-   /* ---------- Lifecycle safety ---------- */
    window.addEventListener('beforeunload', () => { cancelSpeech(); stopRecognition(); });
-   document.addEventListener('visibilitychange', () => {
-     if (document.hidden) { cancelSpeech(); stopRecognition(); }
-   });
+   document.addEventListener('visibilitychange', () => { if (document.hidden) { cancelSpeech(); stopRecognition(); } });
    
-   /* ---------- UI helpers ---------- */
+   /* ---------- UI Helpers ---------- */
    function addBubble(text, who = 'ai') {
      const wrap = document.createElement('div');
      wrap.className = 'bubble ' + who;
@@ -772,18 +742,8 @@
      }
    }
    
-   function updateHeaderAvatar() {
-     const avatarEl = document.getElementById('avatar');
-     if (!avatarEl) return;
-     avatarEl.querySelector('img').src = getAvatarSrc(identitySel.value);
-     avatarEl.classList.remove('ring-pride', 'ring-trans');
-     if (['gay', 'lesbian', 'bi'].includes(identitySel.value)) avatarEl.classList.add('ring-pride');
-     if (['trans', 'trans_pride'].includes(identitySel.value)) avatarEl.classList.add('ring-trans');
-   }
-   
-   /* ---------- Persona & Voices ---------- */
+   /* ---------- Voice Loading ---------- */
    function loadVoices() {
-     if (!('speechSynthesis' in window)) return;
      state.voices = window.speechSynthesis.getVoices() || [];
      voiceSel.innerHTML = '';
      const lang = (langSel.value || 'en-US').split('-')[0];
@@ -797,90 +757,62 @@
        voiceSel.appendChild(opt);
      });
    
-     applyPersonaDefaults();
+     setTimeout(applyPersonaDefaults, 300);
    }
    
+   /* ---------- Default Voices (Fixed) ---------- */
    function applyPersonaDefaults() {
-     if (!state.voices.length) return;
-     const persona = identitySel.value;
+     if (!state.voices.length) { setTimeout(applyPersonaDefaults, 300); return; }
+     const persona = identitySel.value.toLowerCase();
    
      if (persona === 'male') {
-       const aaron = state.voices.find(v => (v.name || '').toLowerCase().includes('aaron') && v.lang === 'en-US');
-       if (aaron) { voiceSel.value = aaron.name; langSel.value = 'en-US'; return; }
-       const fallbackMale = state.voices.find(v => v.lang === 'en-US');
-       if (fallbackMale) { voiceSel.value = fallbackMale.name; langSel.value = 'en-US'; }
+       let aaron = state.voices.find(v => v.lang === 'en-US' && v.name.toLowerCase().includes('aaron'));
+       if (!aaron) aaron = state.voices.find(v => v.lang === 'en-US' && /(male|david|matthew|alex)/i.test(v.name));
+       if (aaron) { voiceSel.value = aaron.name; langSel.value = 'en-US'; }
+     }
    
-     } else if (persona === 'female') {
-       const female = state.voices.find(v => /(samantha|allison|female|ava|karen)/i.test(v.name || '') && v.lang === 'en-GB');
-       if (female) { voiceSel.value = female.name; langSel.value = 'en-GB'; return; }
-       const fallbackFemale = state.voices.find(v => v.lang === 'en-GB');
-       if (fallbackFemale) { voiceSel.value = fallbackFemale.name; langSel.value = 'en-GB'; }
+     if (persona === 'female') {
+       let female = state.voices.find(v => v.lang === 'en-GB' && v.name.toLowerCase().includes('google') && v.name.toLowerCase().includes('female'));
+       if (!female) female = state.voices.find(v => v.lang === 'en-GB' && /(female|samantha|karen|allison)/i.test(v.name));
+       if (female) { voiceSel.value = female.name; langSel.value = 'en-GB'; }
+     }
    
-     } else {
-       const accents = ['en-US', 'en-GB', 'en-IN', 'en-AU'];
-       const randomAccent = accents[Math.floor(Math.random() * accents.length)];
-       const accentVoices = state.voices.filter(v => v.lang === randomAccent);
-       if (accentVoices.length > 0) {
-         const randomVoice = accentVoices[Math.floor(Math.random() * accentVoices.length)];
-         voiceSel.value = randomVoice.name; langSel.value = randomAccent;
-       } else {
-         const englishVoices = state.voices.filter(v => (v.lang || '').startsWith('en-'));
-         if (englishVoices.length > 0) {
-           const fallback = englishVoices[Math.floor(Math.random() * englishVoices.length)];
-           voiceSel.value = fallback.name; langSel.value = fallback.lang || 'en-US';
-         }
+     if (persona === 'neutral') {
+       const englishVoices = state.voices.filter(v => v.lang.startsWith('en'));
+       if (englishVoices.length) {
+         const random = englishVoices[Math.floor(Math.random() * englishVoices.length)];
+         voiceSel.value = random.name;
+         langSel.value = random.lang;
        }
      }
    }
    
-   /* Load voices */
-   updateHeaderAvatar();
-   identitySel.addEventListener('change', () => { updateHeaderAvatar(); applyPersonaDefaults(); });
+   /* ---------- Init Voices ---------- */
    if ('speechSynthesis' in window) {
      window.speechSynthesis.onvoiceschanged = () => { loadVoices(); };
-     setTimeout(() => { loadVoices(); }, 300);
+     setTimeout(() => { loadVoices(); }, 500);
    }
-   langSel.addEventListener('change', () => { loadVoices(); cancelSpeech(); });
    
-   /* ---------- Send flow ---------- */
+   /* ---------- Send Flow ---------- */
    send.addEventListener('click', () => {
      const text = (msg.value || '').trim();
      if (!text) return;
-     unlockAudioOnce();       // ensure voice is allowed after user gesture
+     unlockAudioOnce();
      cancelSpeech();
      addBubble(text, 'user');
      sendToServer(text);
      msg.value = '';
    });
    
-   msg.addEventListener('keydown', (e) => {
-     if (e.key === 'Enter') send.click();
-   });
+   msg.addEventListener('keydown', (e) => { if (e.key === 'Enter') send.click(); });
    
    async function sendToServer(text) {
      send.disabled = true;
      try {
-       const payload = {
-         message: text,
-         identity: identitySel.value,
-         name: nameInput.value || 'Friend',
-         locale: langSel.value
-       };
-   
-       const res = await fetch('/api/chat', {
-         method: 'POST',
-         headers: { 'Content-Type': 'application/json' },
-         body: JSON.stringify(payload)
-       });
-   
+       const payload = { message: text, identity: identitySel.value, name: nameInput.value || 'Friend', locale: langSel.value };
+       const res = await fetch('/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
        const data = await res.json().catch(() => ({}));
-       if (!res.ok || !data.ok) {
-         addBubble('Error: ' + (data.error || `${res.status} ${res.statusText}`));
-         return;
-       }
-   
-       if (identitySel.value === 'neutral') applyPersonaDefaults();
-   
+       if (!res.ok || !data.ok) { addBubble('Error: ' + (data.error || `${res.status} ${res.statusText}`)); return; }
        addBubble(data.reply, 'ai');
        try { speak(data.reply); } catch (_) {}
      } catch (_) {
@@ -890,19 +822,14 @@
      }
    }
    
-   /* ---------- Stop button ---------- */
+   /* ---------- Stop Button ---------- */
    stopBtn.addEventListener('click', () => { cancelSpeech(); stopRecognition(); });
    
-   /* ---------- Mic / Speech recognition ---------- */
+   /* ---------- Speech Recognition ---------- */
    let recognition;
    (function initRecognition() {
      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-     if (!SR) {
-       // Mic not supported (iOS Firefox, older browsers)
-       toggleMic.disabled = true;
-       toggleMic.title = 'Speech recognition not supported on this browser.';
-       return;
-     }
+     if (!SR) { toggleMic.disabled = true; toggleMic.title = 'Speech recognition not supported'; return; }
    
      recognition = new SR();
      recognition.continuous = false;
@@ -911,46 +838,23 @@
    
      recognition.onstart = () => { state.isRecognizing = true; setMicUI(true); };
      recognition.onend = () => { state.isRecognizing = false; setMicUI(false); };
-     recognition.onerror = (e) => {
-       state.isRecognizing = false;
-       setMicUI(false);
-       // Permission or blocked: surface a gentle hint once
-       if (String(e?.error || '').includes('not-allowed')) {
-         addBubble('Mic permission blocked. Please allow microphone access.', 'ai');
-       }
-     };
-     recognition.onresult = (e) => {
-       const text = e.results?.[0]?.[0]?.transcript || '';
-       if (text) {
-         msg.value = text;
-         send.click();
-       }
-     };
+     recognition.onerror = e => { state.isRecognizing = false; setMicUI(false); if (String(e.error).includes('not-allowed')) addBubble('Mic permission blocked.', 'ai'); };
+     recognition.onresult = e => { const text = e.results?.[0]?.[0]?.transcript || ''; if (text) { msg.value = text; send.click(); } };
    
-     langSel.addEventListener('change', () => {
-       if (recognition) recognition.lang = langSel.value;
-     });
+     langSel.addEventListener('change', () => { if (recognition) recognition.lang = langSel.value; });
    })();
    
-   /* Permissions preflight (HTTPS only) */
    async function ensureMicPermission() {
      if (!navigator.mediaDevices?.getUserMedia) return true;
-     try {
-       await navigator.mediaDevices.getUserMedia({ audio: true });
-       return true;
-     } catch {
-       addBubble('Please allow microphone access in your browser settings.', 'ai');
-       return false;
-     }
+     try { await navigator.mediaDevices.getUserMedia({ audio: true }); return true; } catch { addBubble('Please allow microphone access.', 'ai'); return false; }
    }
    
-   /* Mic UI helpers */
    function setMicUI(active) {
      toggleMic.textContent = active ? '🎙️…' : '🎙️';
      toggleMic.classList.toggle('active', !!active);
    }
    
-   /* Hold-to-talk (mouse) */
+   /* ---------- Mic Controls ---------- */
    toggleMic.addEventListener('mousedown', async () => {
      if (!recognition) return;
      unlockAudioOnce();
@@ -960,16 +864,9 @@
      try { recognition.start(); } catch (_) {}
    });
    ['mouseup', 'mouseleave'].forEach(evt => {
-     toggleMic.addEventListener(evt, () => {
-       if (!recognition) return;
-       if (state.recognizingManuallyStarted) {
-         try { recognition.stop(); } catch (_) {}
-         state.recognizingManuallyStarted = false;
-       }
-     });
+     toggleMic.addEventListener(evt, () => { if (recognition && state.recognizingManuallyStarted) { recognition.stop(); state.recognizingManuallyStarted = false; } });
    });
    
-   /* Hold-to-talk (touch) */
    toggleMic.addEventListener('touchstart', async (e) => {
      if (!recognition) return;
      e.preventDefault();
@@ -981,26 +878,12 @@
    }, { passive: false });
    
    ['touchend', 'touchcancel'].forEach(evt => {
-     toggleMic.addEventListener(evt, () => {
-       if (!recognition) return;
-       if (state.recognizingManuallyStarted) {
-         try { recognition.stop(); } catch (_) {}
-         state.recognizingManuallyStarted = false;
-       }
-     });
+     toggleMic.addEventListener(evt, () => { if (recognition && state.recognizingManuallyStarted) { recognition.stop(); state.recognizingManuallyStarted = false; } });
    });
    
-   /* Tap-to-toggle (for quick taps on mobile) */
-   toggleMic.addEventListener('click', async (e) => {
-     // Click also fires after touchend on some devices; avoid double start/stop
-     if (!recognition || !state.tapToggleMode) return;
-     if (state.isRecognizing) {
-       stopRecognition();
-     } else {
-       unlockAudioOnce();
-       if (!(await ensureMicPermission())) return;
-       cancelSpeech();
-       try { recognition.start(); } catch (_) {}
-     }
+   toggleMic.addEventListener('click', async () => {
+     if (!recognition) return;
+     if (state.isRecognizing) stopRecognition();
+     else { unlockAudioOnce(); if (!(await ensureMicPermission())) return; cancelSpeech(); try { recognition.start(); } catch (_) {} }
    });
    
