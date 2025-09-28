@@ -31,22 +31,33 @@
 
 
 
-
 import os
 import requests
+from dotenv import load_dotenv  # ✅ new import
+
+# ✅ Load the .env file
+load_dotenv()
+
+import os
+from dotenv import load_dotenv
+
+# ✅ Load environment variables
+load_dotenv()
+
+# ✅ Just to verify (optional - remove later)
+print("✅ Loaded key:", os.getenv("OPENROUTER_API_KEY"))
+
 
 class OpenRouterClient:
     def __init__(self):
-        # ✅ Read API key from environment variable for security
-        self.api_key = "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"
+        # ✅ Get the key from the .env file
+        self.api_key = os.getenv("OPENROUTER_API_KEY")
 
         if not self.api_key:
-            raise ValueError(
-                "❌ OPENROUTER_API_KEY not found. Please set it as an environment variable."
-            )
+            raise ValueError("❌ OPENROUTER_API_KEY not found. Make sure it's in .env")
 
         self.base_url = "https://openrouter.ai/api/v1/chat/completions"
-        self.model = "openai/gpt-3.5-turbo"  # you can change to GPT-4 or others
+        self.model = "openai/gpt-3.5-turbo"
 
     def chat(self, text, persona="neutral"):
         headers = {
@@ -71,14 +82,12 @@ class OpenRouterClient:
         try:
             res = requests.post(self.base_url, headers=headers, json=payload, timeout=30)
             res.raise_for_status()
-
             data = res.json()
             return data["choices"][0]["message"]["content"].strip()
 
-        except requests.exceptions.HTTPError as http_err:
-            # Detailed HTTP error handling
+        except requests.exceptions.HTTPError:
             return f"⚠️ API error: {res.status_code} - {res.text}"
         except requests.exceptions.Timeout:
-            return "⏱️ The request to OpenRouter timed out. Please try again."
+            return "⏱️ The request timed out. Try again."
         except Exception as e:
-            return f"❌ An unexpected error occurred: {e}"
+            return f"❌ Unexpected error: {e}"
